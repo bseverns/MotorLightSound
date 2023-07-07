@@ -10,6 +10,7 @@
 #define COLOR_ORDER GRB
 #define CHASE_DELAY 55
 #define MAX_CYCLES 3
+#define BUTTON_PIN 2
 
 class LightStrip {
 private:
@@ -25,19 +26,13 @@ public:
     LightStrip();
 
     void begin();
-
     void loop();
 
-    void setChaseColor(const CRGB& color);
-
-    void setButtonPressed(bool pressed);
-
-    void setSteppersHoming(bool homing);
-
-private:
-   void chase(unsigned int& index);
+    void chase();
 
     void resetCycles();
+    void setButtonPressed(bool pressed);
+    void setSteppersHoming(bool homing);
 };
 
 #endif // LIGHTSTRIP_H
