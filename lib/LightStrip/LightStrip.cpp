@@ -34,7 +34,8 @@ void LightStrip::loop() {
 
 void LightStrip::chase(int& index, CRGB color, int& cycles) {
     if (cycles < MAX_CYCLES) {
-        leds[index] = color;
+        int reversedIndex = LED_COUNT - 1 - index;  // Reverse the order of the LEDs
+        leds[reversedIndex] = color;
 
         if (index < ROW_LENGTH) {
             leds[(index + 4) % ROW_LENGTH] = CRGB::Black;
@@ -44,10 +45,10 @@ void LightStrip::chase(int& index, CRGB color, int& cycles) {
                 cycles++;
             }
         } else {
-            leds[index - 4] = CRGB::Black;
-            index++;
-            if (index >= LED_COUNT) {
-                index = ROW_LENGTH;
+            leds[(reversedIndex + 4) % LED_COUNT] = CRGB::Black;
+            index--;
+            if (index < ROW_LENGTH - 4) {
+                index = LED_COUNT - 1;
                 cycles++;
             }
         }

@@ -28,41 +28,82 @@
 int globalIndex = 1;
 int cycles = 0;
 
-SystemController::SystemController(StepperMotor motor1, StepperMotor motor2, StepperMotor motor3, StepperMotor motor4, LightStrip* lightStrip) 
+// SystemController.cpp
+SystemController::SystemController(StepperMotor& motor1, StepperMotor& motor2, StepperMotor& motor3, StepperMotor& motor4, LightStrip* lightStrip, int buttonPin) 
     : motor1(motor1), 
       motor2(motor2), 
       motor3(motor3), 
       motor4(motor4), 
       lightStrip(lightStrip),
-      buttonState(false), 
+      buttonPin(buttonPin),
       state(IDLE) 
 {
 }
 
 void SystemController::begin() {
-  motor1.moveToHome();
-  motor2.moveToHome();
-  motor3.moveToHome();
-  motor4.moveToHome();
-  }
+    pinMode(buttonPin, INPUT_PULLUP);
+    motor1.moveToHome();
+    motor2.moveToHome();
+    motor3.moveToHome();
+    motor4.moveToHome();
+}
 
 void SystemController::update() {
-  // Update the system state
+    handleButtonPress();
+    handleSerialCommand();
+
+    motor1.update();
+    motor2.update();
+    motor3.update();
+    motor4.update();
+
+    lightStrip->loop();
 }
 
 void SystemController::handleButtonPress() {
-start();
+    if (digitalRead(buttonPin) == LOW) {
+        start();
+    }
+}
+
+void SystemController::handleSerialCommand() {
+    if (Serial.available()) {
+        String command = Serial.readStringUntil('\n');
+
+        if (command.startsWith("m")) {
+            int steps = command.substring(1).toInt();
+            motor1.moveToPosition(random(steps));
+            motor2.moveToPosition(random(steps));
+            motor3.moveToPosition(random(steps));
+            motor4.moveToPosition(random(steps));
+        } else if (command.startsWith("s")) {
+            int speed = command.substring(1).toInt();
+            motor1.setSpeed(speed);
+            motor2.setSpeed(speed);
+            motor3.setSpeed(speed);
+            motor4.setSpeed(speed);
+        } else if (command.startsWith("x")) {
+            stop();
+        } else if (command.startsWith("h")) {
+            motor1.moveToHome();
+            motor2.moveToHome();
+            motor3.moveToHome();
+            motor4.moveToHome();
+        }
+    }
 }
 
 void SystemController::start() {
-  // Start the system
-      lightStrip->begin();
-      motor1.moveToHome();
-      motor2.moveToHome();
-      motor3.moveToHome();
-      motor4.moveToHome();
+    lightStrip->begin();
+    motor1.moveToHome();
+    motor2.moveToHome();
+    motor3.moveToHome();
+    motor4.moveToHome();
 }
 
 void SystemController::stop() {
-  // Stop the system
+    motor1.stop();
+    motor2.stop();
+    motor3.stop();
+    motor4.stop();
 }
