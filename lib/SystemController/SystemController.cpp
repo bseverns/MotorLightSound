@@ -42,22 +42,37 @@ SystemController::SystemController(StepperMotor& motor1, StepperMotor& motor2, S
 
 void SystemController::begin() {
     pinMode(buttonPin, INPUT_PULLUP);
-    motor1.moveToHome();
-    motor2.moveToHome();
-    motor3.moveToHome();
-    motor4.moveToHome();
+    state = IDLE;
 }
 
 void SystemController::update() {
     handleButtonPress();
     handleSerialCommand();
 
-    motor1.update();
-    motor2.update();
-    motor3.update();
-    motor4.update();
-
-    lightStrip->loop();
+    switch (state) {
+        case IDLE:
+            // Do nothing
+            break;
+        case HOMING:
+            motor1.update();
+            motor2.update();
+            motor3.update();
+            motor4.update();
+            if (motor1.isAtHome() && motor2.isAtHome() && motor3.isAtHome() && motor4.isAtHome()) {
+                state = RUNNING;
+            }
+            break;
+        case RUNNING:
+            motor1.update();
+            motor2.update();
+            motor3.update();
+            motor4.update();
+            lightStrip->loop();
+            break;
+        case STOPPED:
+            // Do nothing
+            break;
+    }
 }
 
 void SystemController::handleButtonPress() {
@@ -85,10 +100,7 @@ void SystemController::handleSerialCommand() {
         } else if (command.startsWith("x")) {
             stop();
         } else if (command.startsWith("h")) {
-            motor1.moveToHome();
-            motor2.moveToHome();
-            motor3.moveToHome();
-            motor4.moveToHome();
+            start();
         }
     }
 }
@@ -99,6 +111,7 @@ void SystemController::start() {
     motor2.moveToHome();
     motor3.moveToHome();
     motor4.moveToHome();
+    state = HOMING;
 }
 
 void SystemController::stop() {
@@ -106,4 +119,5 @@ void SystemController::stop() {
     motor2.stop();
     motor3.stop();
     motor4.stop();
+    state = STOPPED;
 }

@@ -104,3 +104,7 @@ void StepperMotor::setSpeed(int speed) {
     Serial.println("invalid speed");
   }
 }
+
+bool StepperMotor::isAtHome() {
+  return state == AT_SOFT_HOME;
+}

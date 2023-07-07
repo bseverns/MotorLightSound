@@ -1,6 +1,6 @@
 #include "LightStrip.h"
 
-LightStrip::LightStrip() : chaseIndex1(ROW_LENGTH - 1), chaseIndex2(ROW_LENGTH), lastUpdate(0), chaseColor(CRGB::Green), cycles1(0), cycles2(0), buttonPressed(false) {
+LightStrip::LightStrip() : chaseIndex(ROW_LENGTH - 1), lastUpdate(0), chaseColor(CRGB::Green), cycles(0), buttonPressed(false), steppersHoming(false) {
     FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, LED_COUNT).setCorrection(TypicalLEDStrip);
 }
 
@@ -9,22 +9,22 @@ void LightStrip::begin() {
 }
 
 void LightStrip::loop() {
-    buttonPressed = (digitalRead(BUTTON_PIN) == LOW);
     unsigned long currentMillis = millis();
+
     if (buttonPressed) {
         fill_solid(leds, LED_COUNT, CRGB::Red);
         FastLED.show();
+    } else if (steppersHoming) {
+        fill_solid(leds, LED_COUNT, CRGB::Blue);
+        FastLED.show();
     } else {
         if (currentMillis - lastUpdate >= CHASE_DELAY) {
-            if (cycles1 < MAX_CYCLES) {
-                chase(chaseIndex1, chaseColor, cycles1);
-            }
-            if (cycles2 < MAX_CYCLES) {
-                chase(chaseIndex2, chaseColor, cycles2);
+            if (cycles < MAX_CYCLES) {
+                chase(chaseIndex);
             }
             lastUpdate = currentMillis;
 
-            if (cycles1 >= MAX_CYCLES && cycles2 >= MAX_CYCLES) {
+            if (cycles >= MAX_CYCLES) {
                 fill_solid(leds, LED_COUNT, chaseColor);
                 FastLED.show();
             }
@@ -32,37 +32,45 @@ void LightStrip::loop() {
     }
 }
 
-void LightStrip::chase(int& index, CRGB color, int& cycles) {
+void LightStrip::chase(int& chaseIndex1, int& chaseIndex2, CRGB color, int& cycles) {
     if (cycles < MAX_CYCLES) {
-        int reversedIndex = LED_COUNT - 1 - index;  // Reverse the order of the LEDs
-        leds[reversedIndex] = color;
+        int reversedIndex1 = LED_COUNT - 1 - chaseIndex1;  // Reverse the order of the LEDs in row 1
+        int reversedIndex2 = LED_COUNT - 1 - chaseIndex2;  // Reverse the order of the LEDs in row 2
 
-        if (index < ROW_LENGTH) {
-            leds[(index + 4) % ROW_LENGTH] = CRGB::Black;
-            index--;
-            if (index < -4) {
-                index = ROW_LENGTH - 1;
-                cycles++;
-            }
-        } else {
-            leds[(reversedIndex + 4) % LED_COUNT] = CRGB::Black;
-            index--;
-            if (index < ROW_LENGTH - 4) {
-                index = LED_COUNT - 1;
-                cycles++;
-            }
-        }
+        leds[reversedIndex1] = color;
+        leds[reversedIndex2] = color;
 
         FastLED.show();
         FastLED.delay(1);
+
+        leds[reversedIndex1] = CRGB::Black;
+        leds[reversedIndex2] = CRGB::Black;
+
+        chaseIndex1--;
+        if (chaseIndex1 < 0) {
+            chaseIndex1 = ROW_LENGTH - 1;
+        }
+
+        chaseIndex2--;
+        if (chaseIndex2 < ROW_LENGTH) {
+            chaseIndex2 = LED_COUNT - 1;
+            cycles++;
+        }
     }
 }
 
 void LightStrip::resetCycles() {
-    cycles1 = 0;
-    cycles2 = 0;
+    cycles = 0;
+}
+
+void LightStrip::setChaseColor(const CRGB& color) {
+    chaseColor = color;
 }
 
 void LightStrip::setButtonPressed(bool pressed) {
     buttonPressed = pressed;
+}
+
+void LightStrip::setSteppersHoming(bool homing) {
+    steppersHoming = homing;
 }

@@ -10,18 +10,17 @@
 #define COLOR_ORDER GRB
 #define CHASE_DELAY 55
 #define MAX_CYCLES 3
-#define BUTTON_PIN 2
 
 class LightStrip {
 private:
     CRGB leds[LED_COUNT];
     unsigned int chaseIndex;
-    int chaseIndex1, chaseIndex2;
     uint32_t lastUpdate;
     CRGB chaseColor;
-    int cycles1, cycles2;
+    int cycles;
     bool buttonPressed;
     bool steppersHoming;
+
 public:
     LightStrip();
 
@@ -29,12 +28,16 @@ public:
 
     void loop();
 
-    void chase(int& chaseIndex, CRGB color, int& cycles);
-
-    void resetCycles();
+    void setChaseColor(const CRGB& color);
 
     void setButtonPressed(bool pressed);
+
     void setSteppersHoming(bool homing);
-    };
+
+private:
+   void chase(unsigned int& index);
+
+    void resetCycles();
+};
 
 #endif // LIGHTSTRIP_H
