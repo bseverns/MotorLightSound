@@ -41,8 +41,8 @@ SystemController::SystemController(StepperMotor& motor1, StepperMotor& motor2, S
 }
 
 void SystemController::begin() {
-    pinMode(buttonPin, INPUT_PULLUP);
     state = IDLE;
+    lightStrip->begin();
 }
 
 void SystemController::update() {
@@ -106,7 +106,7 @@ void SystemController::handleSerialCommand() {
 }
 
 void SystemController::start() {
-    lightStrip->begin();
+    //lightStrip->begin();
     motor1.moveToHome();
     motor2.moveToHome();
     motor3.moveToHome();

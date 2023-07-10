@@ -1,8 +1,9 @@
 #include <StepperMotor.h>
 
 void StepperMotor::moveToHome() {
-  stepper.setAcceleration(100000);
-  stepper.setMaxSpeed(1250); // reduce possible speed while homing
+  stepper.setCurrentPosition(0);
+  stepper.setAcceleration(1000);
+  stepper.setMaxSpeed(750); // reduce possible speed while homing
   stepper.setSpeed(1250);
   Serial.println("INIT, going home");
   homingInProgress = true;
@@ -35,10 +36,10 @@ void StepperMotor::update() {
       homingInProgress = true;
       state = BACKING_OFF_SWITCH;
       stepper.stop();     // Stop the motor
+      stepper.setCurrentPosition(0);
       stepper.setMaxSpeed(2000);
       stepper.setSpeed(2000);
       stepper.setAcceleration(10000);
-      stepper.setCurrentPosition(0);
       Serial.println(stepper.currentPosition());
       Serial.println("home");
       stepper.move(-150);  // Bounce back a bit
