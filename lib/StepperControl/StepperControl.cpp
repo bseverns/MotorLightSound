@@ -53,6 +53,10 @@ void StepperControl::setSpeed(float speed) {
     stepper.setSpeed(speed);
 }
 
+void StepperControl::resetPosition(long position) {
+    stepper.setCurrentPosition(position);
+}
+
 long StepperControl::currentPosition() const {
     return stepper.currentPosition();
 }

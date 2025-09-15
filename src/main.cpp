@@ -2,10 +2,10 @@
 
 const int N_STEPPERS = 4;
 StepperControl steppers[N_STEPPERS] = {
-    StepperControl(12, 11, 30),
-    StepperControl(14, 13, 32),
-    StepperControl(16, 15, 36),
-    StepperControl(18, 17, 38)
+    StepperControl(12, 11, 30), // Lane 1
+    StepperControl(14, 13, 32), // Lane 2
+    StepperControl(16, 15, 36), // Lane 3
+    StepperControl(18, 17, 38)  // Lane 4
 };
 
 AudioManager audioManager;
@@ -21,10 +21,13 @@ void setup() {
     Serial7.begin(9600);
     Serial8.begin(9600);
 
+    // Kick the managers into life so the lesson starts from a known-good state.
     gameControl.initialize();
 }
 
 void loop() {
+    // The order here illustrates the cooperative-multitasking pattern used throughout
+    // the project. Each call does a tiny slice of work before we loop back around.
     gameControl.checkGameState();
     gameControl.runSteppers();
     serialEvent1();
