@@ -5,6 +5,8 @@
 
 class SerialManager {
 public:
+    static constexpr unsigned long SERIAL_READ_TIMEOUT_MS = 50;
+
     SerialManager(int laneCount, int laneIndPins[]);
     void initialize();
     void processSerialData(Stream& serial, int laneId);

@@ -1,107 +1,165 @@
 #include "GameControl.h"
 
-GameControl::GameControl(StepperControl steppers[], int nSteppers, AudioManager& audioManager, LEDManager& ledManager, SerialManager& serialManager)
-    : steppers(steppers), nSteppers(nSteppers), audioManager(audioManager), ledManager(ledManager), serialManager(serialManager),
-      isGameStarted(false), resettingGame(false) {
-    isHomed = new bool[nSteppers];
-    reverseDirection = new bool[nSteppers];
-    for (int i = 0; i < nSteppers; i++) {
-        isHomed[i] = false;
-        reverseDirection[i] = false;
-    }
-}
+#include <cstdlib>
+
+GameControl::GameControl(
+    StepperControl steppers[],
+    int nSteppers,
+    AudioManager& audioManager,
+    LEDManager& ledManager,
+    SerialManager& serialManager)
+    : steppers(steppers),
+      nSteppers(nSteppers),
+      audioManager(audioManager),
+      ledManager(ledManager),
+      serialManager(serialManager),
+      state(GameState::Idle),
+      winningLane(0),
+      startSequenceTimestamp(0),
+      stepperStates(nSteppers) {}
 
 void GameControl::initialize() {
+    pinMode(START_BUTTON_PIN, INPUT_PULLUP);
+
     for (int i = 0; i < nSteppers; i++) {
         steppers[i].initialize();
     }
+
     audioManager.initialize();
     ledManager.initialize();
     serialManager.initialize();
+
+    resetGame();
 }
 
 void GameControl::startGame() {
-    homeAllSteppers();
-    while (anyStepperMoving()) {
-        delay(10);
+    if (state != GameState::Idle) {
+        return;
     }
-    audioManager.playStartGameSound();
-    delay(2200);
-    audioManager.playRollerGameSound();
-    isGameStarted = true;
-    ledManager.startChase(LEDManager::getColor(255, 0, 0)); // Red color chase
+
+    ledManager.clear();
+    ledManager.show();
+
+    homeAllSteppers();
+    transitionTo(GameState::Homing);
 }
 
 void GameControl::endGame(int laneId) {
     ledManager.clear();
+
     if (laneId >= 0 && laneId < nSteppers) {
-        winningLane = laneId;
+        winningLane = static_cast<uint8_t>(laneId);
         ledManager.fill(ledManager.getLaneColor(winningLane));
     }
+
     ledManager.show();
     homeAllSteppers();
-    resettingGame = true;
+    transitionTo(GameState::Resetting);
 }
 
 void GameControl::homeAllSteppers() {
     for (int i = 0; i < nSteppers; i++) {
-        isHomed[i] = false;
-        reverseDirection[i] = false;
+        stepperStates[i] = StepperState{};
         steppers[i].home();
     }
 }
 
-bool GameControl::anyStepperMoving() {
+void GameControl::runSteppers() {
+    for (int i = 0; i < nSteppers; i++) {
+        updateStepperState(i);
+        steppers[i].run();
+    }
+}
+
+bool GameControl::anyStepperMoving() const {
     for (int i = 0; i < nSteppers; i++) {
         if (steppers[i].isRunning()) {
             return true;
         }
     }
+
     return false;
 }
 
-void GameControl::runSteppers() {
-    for (int i = 0; i < nSteppers; i++) {
-        if (!isHomed[i]) {
-            if (digitalRead(steppers[i].getHomeSensorPin()) == LOW) {
-                steppers[i].stop();
-                steppers[i].setSpeed(0);
-                reverseDirection[i] = true;
-                isHomed[i] = true;
-            }
-        } else {
-            if (digitalRead(steppers[i].getHomeSensorPin()) == LOW && !reverseDirection[i]) {
-                steppers[i].move(14000); // Move in forward direction
-                reverseDirection[i] = true;
-            } else if (digitalRead(steppers[i].getHomeSensorPin()) == HIGH && reverseDirection[i]) {
-                steppers[i].move(-14000); // Move in reverse direction
-                reverseDirection[i] = false;
-                isHomed[i] = false;
-            }
-        }
-        steppers[i].run();
-    }
-}
-
 void GameControl::checkGameState() {
-    if (isGameStarted && digitalRead(2) == LOW) {
+    if (state == GameState::Idle && digitalRead(START_BUTTON_PIN) == LOW) {
         startGame();
     }
 
-    for (int i = 0; i < nSteppers; i++) {
-        if (abs(steppers[i].currentPosition()) >= 14000) {
-            endGame(i);
-            break;
-        }
-    }
-
-    if (resettingGame && !anyStepperMoving()) {
-        isGameStarted = false;
-        resettingGame = false;
-    }
+    updateStateMachine();
 }
 
 void GameControl::resetGame() {
-    isGameStarted = false;
-    resettingGame = false;
+    winningLane = 0;
+
+    for (auto& stepperState : stepperStates) {
+        stepperState = StepperState{};
+    }
+
+    ledManager.clear();
+    ledManager.show();
+
+    transitionTo(GameState::Idle);
+}
+
+void GameControl::transitionTo(GameState nextState) {
+    state = nextState;
+}
+
+void GameControl::updateStepperState(int index) {
+    StepperState& currentState = stepperStates[index];
+    const int homeSensorValue = digitalRead(steppers[index].getHomeSensorPin());
+
+    if ((state == GameState::Homing || state == GameState::Resetting) && !currentState.homed) {
+        if (homeSensorValue == LOW) {
+            steppers[index].stop();
+            steppers[index].setSpeed(0);
+            steppers[index].resetPosition();
+            currentState.homed = true;
+            currentState.reversing = false;
+        }
+        return;
+    }
+
+    if (state == GameState::Running && currentState.homed) {
+        if (!steppers[index].isRunning()) {
+            const long target = currentState.reversing ? -TRACK_LENGTH_STEPS : TRACK_LENGTH_STEPS;
+            steppers[index].move(target);
+            currentState.reversing = !currentState.reversing;
+        }
+    }
+}
+
+void GameControl::updateStateMachine() {
+    switch (state) {
+        case GameState::Idle:
+            break;
+        case GameState::Homing:
+            if (!anyStepperMoving()) {
+                audioManager.playStartGameSound();
+                startSequenceTimestamp = millis();
+                transitionTo(GameState::Starting);
+            }
+            break;
+        case GameState::Starting:
+            if (millis() - startSequenceTimestamp >= START_SEQUENCE_DELAY_MS) {
+                audioManager.playRollerGameSound();
+                ledManager.startChase(LEDManager::getColor(255, 0, 0));
+                transitionTo(GameState::Running);
+            }
+            break;
+        case GameState::Running:
+            for (int i = 0; i < nSteppers; i++) {
+                if (labs(steppers[i].currentPosition()) >= TRACK_LENGTH_STEPS) {
+                    endGame(i);
+                    break;
+                }
+            }
+            break;
+        case GameState::Resetting:
+            if (!anyStepperMoving()) {
+                resetGame();
+            }
+            break;
+    }
 }

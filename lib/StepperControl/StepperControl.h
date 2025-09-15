@@ -17,6 +17,7 @@ public:
     int getHomeSensorPin() const;
     void stop();
     void setSpeed(float speed);
+    void resetPosition(long position = 0);
     long currentPosition() const;
 
 private:
