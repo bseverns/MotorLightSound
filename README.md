@@ -97,6 +97,33 @@ That's the punky little micro that straps six VL53L0X sensors to a lane, flashes
 `F`/`M`/`L` characters back here. The README in that folder doubles as a wiring cheat sheet so you can
 hand the assignment to students without a six-hour lab briefing.
 
+## Lane controller behavior cheat-sheet
+
+When students ask "what exactly is that little gremlin doing under the lane?" hand them this. It breaks
+down how sensor groups, beacon cues, and serial chatter line up.
+
+```
+   VL53L0X pack         Lane micro brain                 Host Teensy
+┌────────────────┐    ┌────────────────────────┐    ┌────────────────────────────┐
+│ F group (front)│    │ 1. Cycle sensors F/M/L │    │ 1. Parse SENSOR_* frames    │
+│ M group (mid)  │──▶ │ 2. Debounce + gate hit │──▶ │ 2. Flip lane health LEDs    │
+│ L group (late) │    │ 3. Beacon -> on/blink  │    │ 3. Forward win/reset nudges │
+└────────────────┘    │ 4. Emit SENSOR_OK/ERR │    │ 4. Ack with `A` or command   │
+                      └─────────────┬──────────┘    └───────────────┬────────────┘
+                                    │                              │
+                                    │ `A` (all good)               │ `R`/`H`/`T`/`O`
+                                    ▼                              ▼
+                             ┌───────────────┐              ┌────────────────┐
+                             │ Light stays on│◀──────────── │ SerialManager  │
+                             │ or blinks wild│              │ decides next   │
+                             └───────────────┘              │ command burst  │
+                                                           └────────────────┘
+```
+
+The ASCII timeline doubles as a lab worksheet: trace a ball rolling through front/mid/late sensors,
+watch the beacon react, and follow the message that the host firmware turns into LED changes and
+game-state nudges. The vibe is "teach the story, not the API".
+
 ## Suggested lessons & experiments
 
 * **State machine drills** – Ask students to add a `Celebrating` state that twinkles the LEDs before
