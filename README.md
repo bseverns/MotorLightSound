@@ -92,6 +92,11 @@ Lane controllers are expected to stream newline-terminated messages. Anything th
 the trailing character is treated as a command (think `SENSOR_OK:R`). The default handler just logs
 the command and nudges learners to hook it into `GameControl` for bonus credit.
 
+Want to see the other side of that conversation? Check out [`lanes/lane-controller`](lanes/lane-controller/).
+That's the punky little micro that straps six VL53L0X sensors to a lane, flashes a beacon, and ships
+`F`/`M`/`L` characters back here. The README in that folder doubles as a wiring cheat sheet so you can
+hand the assignment to students without a six-hour lab briefing.
+
 ## Suggested lessons & experiments
 
 * **State machine drills** – Ask students to add a `Celebrating` state that twinkles the LEDs before
