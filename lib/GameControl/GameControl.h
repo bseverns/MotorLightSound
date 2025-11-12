@@ -55,6 +55,7 @@ private:
     GameState state;
     uint8_t winningLane;
     unsigned long startSequenceTimestamp;
+    bool startSequenceChaseLaunched = false;
     std::vector<StepperState> stepperStates;
 
     void transitionTo(GameState nextState);

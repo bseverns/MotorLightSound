@@ -9,15 +9,59 @@ void LEDManager::initialize() {
 }
 
 void LEDManager::startChase(uint32_t color) {
-    for (int i = 0; i < ledCount / 2; i++) {
-        setColor(i, color);
-        setColor(ledCount - 1 - i, color);
-        show();
-        delay(100);
-        setColor(i, 0);
-        setColor(ledCount - 1 - i, 0);
-        show();
+    chaseColor = color;
+    currentChaseIndex = 0;
+    chaseLightingPhase = true;
+    chaseActive = true;
+    lastChaseUpdate = 0;
+}
+
+void LEDManager::stopChase() {
+    if (!chaseActive) {
+        return;
     }
+
+    chaseActive = false;
+    chaseLightingPhase = true;
+    clear();
+    show();
+}
+
+void LEDManager::tickChase(unsigned long now) {
+    if (!chaseActive) {
+        return;
+    }
+
+    if (lastChaseUpdate != 0 && now - lastChaseUpdate < CHASE_INTERVAL_MS) {
+        return;
+    }
+
+    lastChaseUpdate = now;
+
+    const int mirroredIndex = ledCount - 1 - currentChaseIndex;
+
+    if (chaseLightingPhase) {
+        setColor(currentChaseIndex, chaseColor);
+        setColor(mirroredIndex, chaseColor);
+        show();
+        chaseLightingPhase = false;
+        return;
+    }
+
+    setColor(currentChaseIndex, 0);
+    setColor(mirroredIndex, 0);
+    show();
+
+    currentChaseIndex++;
+    chaseLightingPhase = true;
+
+    if (currentChaseIndex >= ledCount / 2) {
+        stopChase();
+    }
+}
+
+bool LEDManager::isChaseActive() const {
+    return chaseActive;
 }
 
 void LEDManager::setColor(int index, uint32_t color) {
