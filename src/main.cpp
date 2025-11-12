@@ -28,6 +28,7 @@ void setup() {
 void loop() {
     // The order here illustrates the cooperative-multitasking pattern used throughout
     // the project. Each call does a tiny slice of work before we loop back around.
+    serialManager.tick(millis());
     gameControl.checkGameState();
     gameControl.runSteppers();
     serialEvent1();

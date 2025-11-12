@@ -45,6 +45,7 @@ void GameControl::startGame() {
 }
 
 void GameControl::endGame(int laneId) {
+    ledManager.stopChase();
     ledManager.clear();
 
     if (laneId >= 0 && laneId < nSteppers) {
@@ -96,9 +97,11 @@ void GameControl::resetGame() {
         stepperState = StepperState{};
     }
 
+    ledManager.stopChase();
     ledManager.clear();
     ledManager.show();
 
+    startSequenceChaseLaunched = false;
     transitionTo(GameState::Idle);
 }
 
@@ -138,17 +141,27 @@ void GameControl::updateStateMachine() {
             if (!anyStepperMoving()) {
                 audioManager.playStartGameSound();
                 startSequenceTimestamp = millis();
+                startSequenceChaseLaunched = false;
                 transitionTo(GameState::Starting);
             }
             break;
-        case GameState::Starting:
-            if (millis() - startSequenceTimestamp >= START_SEQUENCE_DELAY_MS) {
-                audioManager.playRollerGameSound();
-                ledManager.startChase(LEDManager::getColor(255, 0, 0));
-                transitionTo(GameState::Running);
+        case GameState::Starting: {
+            const unsigned long now = millis();
+            ledManager.tickChase(now);
+
+            if (now - startSequenceTimestamp >= START_SEQUENCE_DELAY_MS) {
+                if (!startSequenceChaseLaunched) {
+                    audioManager.playRollerGameSound();
+                    ledManager.startChase(LEDManager::getColor(255, 0, 0));
+                    startSequenceChaseLaunched = true;
+                } else if (!ledManager.isChaseActive()) {
+                    transitionTo(GameState::Running);
+                }
             }
             break;
+        }
         case GameState::Running:
+            ledManager.tickChase(millis());
             for (int i = 0; i < nSteppers; i++) {
                 if (labs(steppers[i].currentPosition()) >= TRACK_LENGTH_STEPS) {
                     endGame(i);
